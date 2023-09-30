@@ -181,8 +181,8 @@ export default function BinusEnrichment() {
                   className='hidden w-0 h-0'
                   {...getInputProps()}
                   onChange={(event) => {
-                    const f = event?.target?.files[0];
-                    setFile(f);
+                    const f = event.target.files?.[0];
+                    setFile(f || null);
                   }}
                 />
               </>

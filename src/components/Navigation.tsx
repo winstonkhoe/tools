@@ -18,7 +18,7 @@ const NavigationBarItem = ({ href, text }: Props) => {
 
 const NavigationBar = () => {
   return (
-    <div className='relative w-full items-center font-mono text-sm flex px-14 py-10 gap-4'>
+    <div className='relative w-full items-center font-mono text-sm flex px-6 md:px-14 py-6 md:py-10 gap-4'>
       {Object.entries(routes).map(([key, route], index) => {
         return (
           <NavigationBarItem

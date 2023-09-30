@@ -97,7 +97,7 @@ export default function BinusEnrichment() {
           </span>
         </div>
       )}
-      <div className='flex flex-col gap-6 w-96'>
+      <div className='flex flex-col gap-6 w-72 sm:w-96'>
         {attemptCount > 0 && (
           <div className='flex justify-center gap-4'>
             <h2 className='text-center font-bold lowercase'>Last Attempt</h2>

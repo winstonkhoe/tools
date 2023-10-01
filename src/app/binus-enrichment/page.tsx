@@ -13,7 +13,14 @@ interface FormInputs {
   password: string;
 }
 
+interface ErrorResponse {
+  errorMessage: string;
+}
+
 export default function BinusEnrichment() {
+  const [errorResponse, setErrorResponse] = useState<ErrorResponse | undefined>(
+    undefined
+  );
   const [attemptCount, setAttemptCount] = useState<number>(0);
   const [lastAttemptSuccessful, setLastAttemptSuccessful] =
     useState<boolean>(false);
@@ -46,6 +53,7 @@ export default function BinusEnrichment() {
           setLastAttemptSuccessful(true);
         })
         .catch((err) => {
+          setErrorResponse(err?.response?.data?.error);
           setLastAttemptSuccessful(false);
         })
         .finally(() => {
@@ -99,17 +107,24 @@ export default function BinusEnrichment() {
       )}
       <div className='flex flex-col gap-6 w-72 sm:w-96'>
         {attemptCount > 0 && (
-          <div className='flex justify-center gap-4'>
-            <h2 className='text-center font-bold lowercase'>Last Attempt</h2>
-            {lastAttemptSuccessful ? (
-              <h2 className='text-center font-bold lowercase text-primary-green-400'>
-                success
-              </h2>
-            ) : (
-              <h2 className='text-center font-bold lowercase text-primary-red-300'>
-                failed
-              </h2>
-            )}
+          <div className='flex flex-col gap-1'>
+            <div className='flex justify-center gap-4'>
+              <h2 className='text-center font-bold lowercase'>Last Attempt</h2>
+              {lastAttemptSuccessful ? (
+                <h2 className='text-center font-bold lowercase text-primary-green-400'>
+                  success
+                </h2>
+              ) : (
+                <h2 className='text-center font-bold lowercase text-primary-red-300'>
+                  failed
+                </h2>
+              )}
+            </div>
+            {!lastAttemptSuccessful && errorResponse && (
+              <div className="flex justify-center">
+                <span className='text-xs font-semibold lowercase text-primary-red-300 opacity-80'>{errorResponse?.errorMessage}</span>
+              </div>
+            ) }
           </div>
         )}
 

@@ -54,17 +54,22 @@ export default function BinusEnrichment() {
   });
 
   useEffect(() => {
+    const finishFillLogBook = () => {
+      setIsLoading(false);
+      setAttemptCount(attemptCount + 1);
+    }
+
     const onFillLogBookStatus = (status: string, timestamp: number) => {
       setStatusLogs([...statusLogs, { status, timestamp }]);
     };
 
     const onFillLogBookSuccess = () => {
-      setIsLoading(false);
+      finishFillLogBook()
       setLastAttemptSuccessful(true);
     };
 
     const onFillLogBookError = () => {
-      setIsLoading(false);
+      finishFillLogBook()
       setLastAttemptSuccessful(false);
     };
 
@@ -95,7 +100,7 @@ export default function BinusEnrichment() {
         onFillLogBookError
       );
     };
-  }, [socket, statusLogs]);
+  }, [socket, statusLogs, attemptCount]);
 
   const onSubmit = (data: any) => {
     const email = data?.email;
@@ -106,7 +111,6 @@ export default function BinusEnrichment() {
     if (file && fileArrayBuffer && email && password) {
       socket.emit('enrichment-automation.fill-logbook', email, password, file, monthsSelected);
       setIsLoading(true);
-      setAttemptCount(attemptCount + 1);
     }
   };
 

@@ -10,7 +10,7 @@ export default function Home() {
         <h2 className='text-4xl font-bold lowercase'>Available Tools</h2>
         <div className='flex gap-10'>
           <Link href={`${routes?.binusEnrichment?.path}`}>
-            <div className='relative flex flex-col items-center p-5 rounded-lg bg bg-primary-black hover:cursor-pointer w-80 border-2 transition-colors border-transparent hover:border-primary-yellow-100/40'>
+            <div className='relative flex flex-col items-center p-5 rounded-lg bg-primary-yellow-100/40 dark:bg-primary-black hover:cursor-pointer w-80 border-2 transition-colors border-transparent hover:border-primary-yellow-100/40'>
               <Image
                 src='/automation-logbook-illustration.png'
                 alt='Logbook Automation Illustration'
@@ -23,7 +23,7 @@ export default function Home() {
                 <h3 className='text-normal font-semibold lowercase text-center'>
                   Automation Enrichment Logbook
                 </h3>
-                <span className='text-normal font-normal opacity-40 break-words lowercase text-center'>
+                <span className='text-normal font-normal opacity-70 dark:opacity-40 break-words lowercase text-center'>
                   automatically fill in your enrichment logbook based on excel
                   file
                 </span>

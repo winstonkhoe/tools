@@ -27,7 +27,7 @@ const Input = ({
   return (
     <>
       {type === 'textarea' ? (
-        <textarea {...register(name!)} />
+        <textarea className='font-mono' {...register(name!)} />
       ) : (
         <div className={`relative w-full`}>
           <div
@@ -44,7 +44,7 @@ const Input = ({
             type={type}
             className={`w-full appearance-none ${
               className ? `${className} ` : ''
-            }text-base text-primary-black dark:text-primary-white bg-transparent autofill:bg-transparent focus:bg-transparent rounded-none py-2 outline-none focus:outline-none`}
+            }text-base font-mono text-primary-black dark:text-primary-white bg-transparent autofill:bg-transparent focus:bg-transparent rounded-none py-2 outline-none focus:outline-none`}
             onFocus={() => {
               setIsFocus(true);
             }}

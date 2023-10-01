@@ -19,6 +19,7 @@
     "react-hook-form": "^7.46.2",
     "react-icons": "^4.11.0",
     "react-spinners": "^0.13.8",
+    "socket.io-client": "^4.7.2",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.0/xlsx-0.20.0.tgz"
   },
   "devDependencies": {
@@ -29,7 +30,12 @@
     "eslint": "latest",
     "eslint-config-next": "latest",
     "postcss": "latest",
+    "tailwind-scrollbar": "^3.0.5",
     "tailwindcss": "latest",
     "typescript": "latest"
+  },
+  "optionalDependencies": {
+    "bufferutil": "^4.0.7",
+    "utf-8-validate": "^5.0.10"
   }
 }

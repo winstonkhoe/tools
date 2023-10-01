@@ -1,5 +1,4 @@
 'use client';
-import axios from 'axios';
 import { Input } from '@/components/Form';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
@@ -7,6 +6,12 @@ import { SiMicrosoftexcel } from 'react-icons/si';
 import { FaXmark } from 'react-icons/fa6';
 import { useDropzone } from 'react-dropzone';
 import { SyncLoader } from 'react-spinners';
+import { SOCKET_EVENT } from '@/utils/constants';
+import { useSocket } from '@/contexts/socket';
+import { getFormattedDate, months } from '@/utils/date-time';
+import { AiFillInfoCircle } from 'react-icons/ai';
+import { MdCheckBoxOutlineBlank, MdCheckBox } from 'react-icons/md';
+import { IoChevronDown } from 'react-icons/io5'
 
 interface FormInputs {
   email: string;
@@ -17,13 +22,27 @@ interface ErrorResponse {
   errorMessage: string;
 }
 
+interface StatusLog {
+  status: string;
+  timestamp: number;
+}
+
+interface DropdownProps {
+  text: string;
+  value: string;
+}
+
 export default function BinusEnrichment() {
+  const [socket] = useSocket();
+  const [selectedMonths, setSelectedMonths] = useState<DropdownProps[]>([]);
   const [errorResponse, setErrorResponse] = useState<ErrorResponse | undefined>(
     undefined
   );
+  const [statusLogs, setStatusLogs] = useState<StatusLog[]>([]);
   const [attemptCount, setAttemptCount] = useState<number>(0);
   const [lastAttemptSuccessful, setLastAttemptSuccessful] =
     useState<boolean>(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [file, setFile] = useState<File | null>(null);
   const [fileArrayBuffer, setFileArrayBuffer] = useState<any | null>(null);
@@ -34,32 +53,60 @@ export default function BinusEnrichment() {
     }
   });
 
+  useEffect(() => {
+    const onFillLogBookStatus = (status: string, timestamp: number) => {
+      setStatusLogs([...statusLogs, { status, timestamp }]);
+    };
+
+    const onFillLogBookSuccess = () => {
+      setIsLoading(false);
+      setLastAttemptSuccessful(true);
+    };
+
+    const onFillLogBookError = () => {
+      setIsLoading(false);
+      setLastAttemptSuccessful(false);
+    };
+
+    socket.on(
+      SOCKET_EVENT.enrichmentAutomation.fillLogBook.status,
+      onFillLogBookStatus
+    );
+    socket.on(
+      SOCKET_EVENT.enrichmentAutomation.fillLogBook.success,
+      onFillLogBookSuccess
+    );
+    socket.on(
+      SOCKET_EVENT.enrichmentAutomation.fillLogBook.error,
+      onFillLogBookError
+    );
+
+    return () => {
+      socket.off(
+        SOCKET_EVENT.enrichmentAutomation.fillLogBook.status,
+        onFillLogBookStatus
+      );
+      socket.off(
+        SOCKET_EVENT.enrichmentAutomation.fillLogBook.success,
+        onFillLogBookSuccess
+      );
+      socket.off(
+        SOCKET_EVENT.enrichmentAutomation.fillLogBook.error,
+        onFillLogBookError
+      );
+    };
+  }, [socket, statusLogs]);
+
   const onSubmit = (data: any) => {
     const email = data?.email;
     const password = data?.password;
+    const monthsSelected = selectedMonths?.map((month: DropdownProps) => {
+      return month.value
+    })
     if (file && fileArrayBuffer && email && password) {
-      const formData = new FormData();
-      formData.append('email', email);
-      formData.append('password', password);
-      formData.append('file', file);
-
+      socket.emit('enrichment-automation.fill-logbook', email, password, file, monthsSelected);
       setIsLoading(true);
-      axios
-        .post(
-          `${process.env.NEXT_PUBLIC_TOOLS_BACKEND_HOST}/tools/enrichment-automation/fill-logbook`,
-          formData
-        )
-        .then((res) => {
-          setLastAttemptSuccessful(true);
-        })
-        .catch((err) => {
-          setErrorResponse(err?.response?.data?.error);
-          setLastAttemptSuccessful(false);
-        })
-        .finally(() => {
-          setIsLoading(false);
-          setAttemptCount(attemptCount + 1);
-        });
+      setAttemptCount(attemptCount + 1);
     }
   };
 
@@ -96,16 +143,16 @@ export default function BinusEnrichment() {
   });
 
   return (
-    <div className='flex flex-1 justify-center items-center'>
-      {isLoading && (
-        <div className='fixed z-50 inset-0 flex flex-col gap-8 justify-center items-center w-full h-full bg-primary-grey/80'>
-          <SyncLoader color='#DB8800' />
-          <span className='font-semibold text-normal tracking-wider animate-wiggle dark:text-primary-white text-primary-white'>
-            filling your logbook 🚀
+    <div className='flex flex-1 justify-center items-center pt-4 pb-10'>
+      <div className='flex flex-col gap-6 w-72 sm:w-96'>
+        <div className='flex items-center gap-3 bg-primary-yellow-100/70 p-3 rounded-lg'>
+          <span className='text-2xl'>
+            <AiFillInfoCircle />
+          </span>
+          <span className='font-mono font-semibold text-xs text-primary-black lowercase'>
+            This application will never save any information
           </span>
         </div>
-      )}
-      <div className='flex flex-col gap-6 w-72 sm:w-96'>
         {attemptCount > 0 && (
           <div className='flex flex-col gap-1'>
             <div className='flex justify-center gap-4'>
@@ -121,13 +168,99 @@ export default function BinusEnrichment() {
               )}
             </div>
             {!lastAttemptSuccessful && errorResponse && (
-              <div className="flex justify-center">
-                <span className='text-xs font-semibold lowercase text-primary-red-300 opacity-80'>{errorResponse?.errorMessage}</span>
+              <div className='flex justify-center'>
+                <span className='text-xs font-semibold lowercase text-primary-red-300 opacity-80'>
+                  {errorResponse?.errorMessage}
+                </span>
               </div>
-            ) }
+            )}
           </div>
         )}
-
+        <div
+          className={`box-border relative flex gap-3 bg-primary-white dark:bg-primary-grey p-3 transition-all ${
+            isDropdownOpen ? 'rounded-t' : 'rounded'
+          }`}
+          onClick={(event) => {
+            event.stopPropagation();
+            setIsDropdownOpen(!isDropdownOpen);
+          }}
+        >
+          <div className="flex w-full flex-wrap gap-3">
+            {selectedMonths.length > 0 ? selectedMonths.map(
+              (selectedMonth: DropdownProps, index: number) => {
+                return (
+                  <div
+                    key={`${index}-${selectedMonth?.value}`}
+                    className='flex items-center gap-2 bg-primary-yellow-100 px-3 py-2 rounded text-xs font-mono font-semibold lowercase text-primary-black'
+                    onClick={(event) => { 
+                      event.stopPropagation();
+                      setSelectedMonths(
+                        selectedMonths?.filter(
+                          (month) => month?.value !== selectedMonth?.value
+                        )
+                      );
+                    }}
+                  >
+                    <span className=''>{selectedMonth?.text}</span>
+                    <span className=''>
+                      <FaXmark />
+                    </span>
+                  </div>
+                );
+              }
+            ) : <span className='font-mono lowercase'>Choose Logbook Month</span>}
+          </div>
+          <div className={`flex items-center transition-transform ${isDropdownOpen ? '-rotate-180' : ''}`}><IoChevronDown /></div>
+          <div
+            className={`absolute z-50 w-full flex flex-col left-0 top-full rounded-b bg-primary-white dark:bg-primary-grey transition-all scrollbar-thin scrollbar-track-primary-grey/30 scrollbar-thumb-primary-black dark:scrollbar-track-primary-white/10 dark:scrollbar-thumb-primary-yellow-100/70 ${
+              isDropdownOpen
+                ? 'max-h-96 overflow-y-auto'
+                : 'max-h-0 overflow-hidden'
+            }`}
+          >
+            {months?.map((month: string, index: number) => {
+              return (
+                <div
+                  className={`flex items-center gap-3 w-full py-2 px-4 cursor-pointer hover:bg-primary-yellow-100/40 transition-colors text-lg ${
+                    selectedMonths?.find(
+                      (selectedMonth) => selectedMonth?.value === month
+                    )
+                      ? 'bg-primary-yellow-100/40'
+                      : ''
+                  }`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    const selectedMonth = selectedMonths?.find(
+                      (selectedMonth) => selectedMonth?.value === month
+                    );
+                    if (selectedMonth) {
+                      setSelectedMonths(
+                        selectedMonths?.filter(
+                          (selectedMonth) => selectedMonth?.value !== month
+                        )
+                      );
+                    } else {
+                      setSelectedMonths([
+                        ...selectedMonths,
+                        { text: month, value: month }
+                      ]);
+                    }
+                  }}
+                  key={`${index}-${month}`}
+                >
+                  <span>
+                    {selectedMonths?.find(
+                      (selectedMonth) => selectedMonth?.value === month
+                    ) ? <MdCheckBox/> : <MdCheckBoxOutlineBlank />}
+                  </span>
+                  <span className='font-mono font-semibold lowercase text-primary-black dark:text-primary-white'>
+                    {month}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
         <FormProvider {...methods}>
           <Input
             name='email'
@@ -141,11 +274,11 @@ export default function BinusEnrichment() {
           />
 
           <div className='flex flex-col gap-2'>
-            <span className='text-sm font-semibold'>
+            <span className='text-sm font-mono'>
               Download the template{' '}
               <a
                 href='/presensi-sample.xlsx'
-                className='transition-opacity opacity-80 hover:opacity-100 text-primary-yellow-300 dark:text-primary-yellow-100'
+                className='font-semibold transition-opacity opacity-80 hover:opacity-100 text-primary-yellow-300 dark:text-primary-yellow-100'
               >
                 here
               </a>
@@ -181,8 +314,8 @@ export default function BinusEnrichment() {
                     <span className='text-2xl opacity-60'>
                       <SiMicrosoftexcel />
                     </span>
-                    <span className='text-sm font-semibold'>
-                      <span className='text-primary-yellow-300 dark:text-primary-yellow-100'>
+                    <span className='text-sm font-mono'>
+                      <span className='font-semibold text-primary-yellow-300 dark:text-primary-yellow-100'>
                         Select file
                       </span>{' '}
                       <span className='opacity-60'>or drop your file here</span>
@@ -204,13 +337,51 @@ export default function BinusEnrichment() {
             )}
           </div>
           <button
-            className='w-full py-2 text-base text-center font-bold rounded-lg disabled:opacity-20 disabled:cursor-not-allowed bg-primary-yellow-100 text-primary-grey opacity-80 hover:opacity-100'
-            disabled={!file}
+            className='w-full py-2 text-base text-center font-mono font-bold rounded-lg disabled:opacity-20 disabled:cursor-not-allowed bg-primary-yellow-100 text-primary-grey opacity-80 hover:opacity-100'
+            disabled={!file || isLoading}
             onClick={methods.handleSubmit(onSubmit)}
           >
             Start Filling Your LogBook
           </button>
         </FormProvider>
+        <div className='flex flex-col rounded overflow-hidden mt-4'>
+          <div className='w-full flex justify-between px-4 py-2 bg-primary-yellow-300/70'>
+            <h4 className='font-mono font-semibold lowercase text-primary-white'>
+              Event Logs
+            </h4>
+            {isLoading && (
+              <SyncLoader
+                size={8}
+                color='#fff'
+              />
+            )}
+          </div>
+          <div className='w-full flex flex-col gap-6 py-4 px-2 max-h-72 bg-primary-grey/10 dark:bg-primary-grey/50 overflow-y-auto scrollbar-thin scrollbar-track-primary-grey/30 scrollbar-thumb-primary-black dark:scrollbar-track-primary-white/10 dark:scrollbar-thumb-primary-yellow-100/70'>
+            {statusLogs?.map((statusLog: StatusLog, index: number) => {
+              const { date, time } = getFormattedDate(
+                new Date(statusLog?.timestamp)
+              );
+              return (
+                <div
+                  className='flex w-full items-start gap-2'
+                  key={`${index}-${statusLog?.status}-${statusLog?.timestamp}`}
+                >
+                  <div className='flex flex-col'>
+                    <span className='text-sm font-mono tracking-wider text-primary-yellow-300 dark:text-primary-yellow-100 opacity-80'>
+                      {time}
+                    </span>
+                    <span className='text-xs font-mono text-primary-black dark:text-primary-white opacity-60'>
+                      {date}
+                    </span>
+                  </div>
+                  <span className='text-xs font-mono tracking-wider text-primary-black dark:text-primary-white opacity-80 break-words'>
+                    {statusLog?.status}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -54,6 +54,7 @@ const config: Config = {
   },
   plugins: [
     require('autoprefixer'),
+    require('tailwind-scrollbar'),
   ],
 }
 export default config

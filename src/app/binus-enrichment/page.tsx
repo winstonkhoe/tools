@@ -7,7 +7,7 @@ import { FaXmark } from 'react-icons/fa6';
 import { useDropzone } from 'react-dropzone';
 import { SyncLoader } from 'react-spinners';
 import { SOCKET_EVENT } from '@/utils/constants';
-import { useSocket } from '@/contexts/socket';
+import { useSocket } from '@/contexts/Socket';
 import { getFormattedDate, months } from '@/utils/date-time';
 import { AiFillInfoCircle } from 'react-icons/ai';
 import { MdCheckBoxOutlineBlank, MdCheckBox } from 'react-icons/md';

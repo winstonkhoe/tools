@@ -88,15 +88,14 @@ export default function BinusEnrichment() {
       .flat();
   }, []);
   const [selectedPeriod, setSelectedPeriod] = useState<Period>(
-    periods[periods.length - 1]
+    periods[2]
   );
   const [errorResponse, setErrorResponse] = useState<ErrorResponse | undefined>(
     undefined
   );
   const [statusLogs, setStatusLogs] = useState<StatusLog[]>([]);
-  const [attemptCount, setAttemptCount] = useState<number>(0);
   const [lastAttemptSuccessful, setLastAttemptSuccessful] =
-    useState<boolean>(false);
+    useState<boolean>();
   const [isSemesterDropdownOpen, setIsSemesterDropdownOpen] =
     useState<boolean>(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
@@ -113,7 +112,6 @@ export default function BinusEnrichment() {
   useEffect(() => {
     const finishFillLogBook = () => {
       setIsLoading(false);
-      setAttemptCount(attemptCount + 1);
     };
 
     const onFillLogBookStatus = (status: string, timestamp: number) => {
@@ -157,7 +155,7 @@ export default function BinusEnrichment() {
         onFillLogBookError
       );
     };
-  }, [socket, statusLogs, attemptCount]);
+  }, [socket, statusLogs]);
 
   const onSubmit = (data: any) => {
     const email = data?.email;
@@ -176,6 +174,7 @@ export default function BinusEnrichment() {
         periodSelected
       );
       setIsLoading(true);
+      setLastAttemptSuccessful(undefined);
     }
   };
 
@@ -222,7 +221,7 @@ export default function BinusEnrichment() {
             This application will never save any information
           </span>
         </div>
-        {attemptCount > 0 && (
+        {lastAttemptSuccessful !== undefined && (
           <div className='flex flex-col gap-1'>
             <div className='flex justify-center gap-4'>
               <h2 className='text-center font-bold lowercase'>Last Attempt</h2>

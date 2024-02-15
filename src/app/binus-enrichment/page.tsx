@@ -64,17 +64,12 @@ export default function BinusEnrichment() {
     const currentYear = new Date().getFullYear();
     return [currentYear, currentYear + 1]
       .map((year): Period[] => {
-        const startOddYear = year - 2;
-        const endOddYear = year - 1;
-        const startEvenYear = year - 1;
-        const endEvenYear = year;
-        const BinusianYear = `B${endEvenYear % 1000}`;
+        const startEvenYear = year - 2;
+        const endEvenYear = year - 1;
+        const startOddYear = year - 1;
+        const endOddYear = year;
+        const BinusianYear = `B${endOddYear % 1000}`;
         return [
-          {
-            text: `${periodType.odd.text} ${startOddYear}/${endOddYear} (${BinusianYear})`,
-            type: 'odd',
-            value: parseInt(`${startOddYear % 1000}${periodType.odd.value}`, 10)
-          },
           {
             text: `${periodType.even.text} ${startEvenYear}/${endEvenYear} (${BinusianYear})`,
             type: 'even',
@@ -82,20 +77,22 @@ export default function BinusEnrichment() {
               `${startEvenYear % 1000}${periodType.even.value}`,
               10
             )
+          },
+          {
+            text: `${periodType.odd.text} ${startOddYear}/${endOddYear} (${BinusianYear})`,
+            type: 'odd',
+            value: parseInt(`${startOddYear % 1000}${periodType.odd.value}`, 10)
           }
         ];
       })
       .flat();
   }, []);
-  const [selectedPeriod, setSelectedPeriod] = useState<Period>(
-    periods[2]
-  );
+  const [selectedPeriod, setSelectedPeriod] = useState<Period>(periods[2]);
   const [errorResponse, setErrorResponse] = useState<ErrorResponse | undefined>(
     undefined
   );
   const [statusLogs, setStatusLogs] = useState<StatusLog[]>([]);
-  const [lastAttemptSuccessful, setLastAttemptSuccessful] =
-    useState<boolean>();
+  const [lastAttemptSuccessful, setLastAttemptSuccessful] = useState<boolean>();
   const [isSemesterDropdownOpen, setIsSemesterDropdownOpen] =
     useState<boolean>(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
@@ -163,7 +160,7 @@ export default function BinusEnrichment() {
     const monthsSelected = selectedMonths?.map((month: DropdownProps) => {
       return month.value;
     });
-    const periodSelected = selectedPeriod.value
+    const periodSelected = selectedPeriod.value;
     if (file && fileArrayBuffer && email && password && periodSelected) {
       socket.emit(
         'enrichment-automation.fill-logbook',

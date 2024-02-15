@@ -8,10 +8,10 @@ import { useDropzone } from 'react-dropzone';
 import { SyncLoader } from 'react-spinners';
 import { SOCKET_EVENT } from '@/utils/constants';
 import { useSocket } from '@/contexts/Socket';
-import { getFormattedDate, months } from '@/utils/date-time';
+import { Month, getFormattedDate, months } from '@/utils/date-time';
 import { AiFillInfoCircle } from 'react-icons/ai';
 import { MdCheckBoxOutlineBlank, MdCheckBox } from 'react-icons/md';
-import { IoChevronDown } from 'react-icons/io5'
+import { IoChevronDown } from 'react-icons/io5';
 
 interface FormInputs {
   email: string;
@@ -29,18 +29,75 @@ interface StatusLog {
 
 interface DropdownProps {
   text: string;
-  value: string;
+  value: string | number;
 }
+
+export type PeriodSemesterType = 'odd' | 'even';
+
+interface Period {
+  text: string;
+  type: PeriodSemesterType;
+  value: number;
+}
+
+type PeriodType = {
+  [key in PeriodSemesterType]: Period;
+};
+
+const periodType: PeriodType = {
+  odd: {
+    text: 'Odd Semester',
+    type: 'odd',
+    value: 10
+  },
+  even: {
+    text: 'Even Semester',
+    type: 'even',
+    value: 20
+  }
+};
 
 export default function BinusEnrichment() {
   const [socket] = useSocket();
   const [selectedMonths, setSelectedMonths] = useState<DropdownProps[]>([]);
+  const periods = useMemo<Period[]>(() => {
+    const currentYear = new Date().getFullYear();
+    return [currentYear, currentYear + 1]
+      .map((year): Period[] => {
+        const startOddYear = year - 2;
+        const endOddYear = year - 1;
+        const startEvenYear = year - 1;
+        const endEvenYear = year;
+        const BinusianYear = `B${endEvenYear % 1000}`;
+        return [
+          {
+            text: `${periodType.odd.text} ${startOddYear}/${endOddYear} (${BinusianYear})`,
+            type: 'odd',
+            value: parseInt(`${startOddYear % 1000}${periodType.odd.value}`, 10)
+          },
+          {
+            text: `${periodType.even.text} ${startEvenYear}/${endEvenYear} (${BinusianYear})`,
+            type: 'even',
+            value: parseInt(
+              `${startEvenYear % 1000}${periodType.even.value}`,
+              10
+            )
+          }
+        ];
+      })
+      .flat();
+  }, []);
+  const [selectedPeriod, setSelectedPeriod] = useState<Period>(
+    periods[periods.length - 1]
+  );
   const [errorResponse, setErrorResponse] = useState<ErrorResponse | undefined>(
     undefined
   );
   const [statusLogs, setStatusLogs] = useState<StatusLog[]>([]);
   const [attemptCount, setAttemptCount] = useState<number>(0);
   const [lastAttemptSuccessful, setLastAttemptSuccessful] =
+    useState<boolean>(false);
+  const [isSemesterDropdownOpen, setIsSemesterDropdownOpen] =
     useState<boolean>(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -57,19 +114,19 @@ export default function BinusEnrichment() {
     const finishFillLogBook = () => {
       setIsLoading(false);
       setAttemptCount(attemptCount + 1);
-    }
+    };
 
     const onFillLogBookStatus = (status: string, timestamp: number) => {
       setStatusLogs([...statusLogs, { status, timestamp }]);
     };
 
     const onFillLogBookSuccess = () => {
-      finishFillLogBook()
+      finishFillLogBook();
       setLastAttemptSuccessful(true);
     };
 
     const onFillLogBookError = () => {
-      finishFillLogBook()
+      finishFillLogBook();
       setLastAttemptSuccessful(false);
     };
 
@@ -106,10 +163,18 @@ export default function BinusEnrichment() {
     const email = data?.email;
     const password = data?.password;
     const monthsSelected = selectedMonths?.map((month: DropdownProps) => {
-      return month.value
-    })
-    if (file && fileArrayBuffer && email && password) {
-      socket.emit('enrichment-automation.fill-logbook', email, password, file, monthsSelected);
+      return month.value;
+    });
+    const periodSelected = selectedPeriod.value
+    if (file && fileArrayBuffer && email && password && periodSelected) {
+      socket.emit(
+        'enrichment-automation.fill-logbook',
+        email,
+        password,
+        file,
+        monthsSelected,
+        periodSelected
+      );
       setIsLoading(true);
     }
   };
@@ -181,7 +246,60 @@ export default function BinusEnrichment() {
           </div>
         )}
         <div
-          className={`box-border relative flex gap-3 bg-primary-white dark:bg-primary-grey p-3 transition-all ${
+          className={`cursor-pointer box-border relative flex gap-3 bg-primary-white dark:bg-primary-grey p-3 transition-all ${
+            isSemesterDropdownOpen ? 'rounded-t' : 'rounded'
+          }`}
+          onClick={(event) => {
+            event.stopPropagation();
+            setIsSemesterDropdownOpen(!isSemesterDropdownOpen);
+          }}
+        >
+          <div className='flex w-full flex-wrap gap-3'>
+            <span className='font-mono lowercase'>{selectedPeriod.text}</span>
+          </div>
+          <div
+            className={`flex items-center transition-transform ${
+              isSemesterDropdownOpen ? '-rotate-180' : ''
+            }`}
+          >
+            <IoChevronDown />
+          </div>
+          <div
+            className={`absolute z-50 w-full flex flex-col left-0 top-full rounded-b bg-primary-white dark:bg-primary-grey transition-all scrollbar-thin scrollbar-track-primary-grey/30 scrollbar-thumb-primary-black dark:scrollbar-track-primary-white/10 dark:scrollbar-thumb-primary-yellow-100/70 ${
+              isSemesterDropdownOpen
+                ? 'max-h-96 overflow-y-auto'
+                : 'max-h-0 overflow-hidden'
+            }`}
+          >
+            {periods?.map((period: Period, index: number) => {
+              const periodIsSelected = period.value === selectedPeriod.value;
+              return (
+                <div
+                  className={`flex items-center gap-3 w-full py-2 px-4 cursor-pointer transition-colors text-lg ${
+                    periodIsSelected
+                      ? 'bg-primary-yellow-100/40 hover:bg-primary-yellow-100/40'
+                      : 'hover:bg-primary-yellow-100/20 '
+                  }`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (selectedPeriod !== period) {
+                      setSelectedPeriod(period);
+                      setSelectedMonths([]);
+                    }
+                    setIsSemesterDropdownOpen(false);
+                  }}
+                  key={`${index}-${period.value}`}
+                >
+                  <span className='font-mono font-semibold lowercase text-primary-black dark:text-primary-white'>
+                    {period.text}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div
+          className={`cursor-pointer box-border relative flex gap-3 bg-primary-white dark:bg-primary-grey p-3 transition-all ${
             isDropdownOpen ? 'rounded-t' : 'rounded'
           }`}
           onClick={(event) => {
@@ -189,32 +307,42 @@ export default function BinusEnrichment() {
             setIsDropdownOpen(!isDropdownOpen);
           }}
         >
-          <div className="flex w-full flex-wrap gap-3">
-            {selectedMonths.length > 0 ? selectedMonths.map(
-              (selectedMonth: DropdownProps, index: number) => {
-                return (
-                  <div
-                    key={`${index}-${selectedMonth?.value}`}
-                    className='flex items-center gap-2 bg-primary-yellow-100 px-3 py-2 rounded text-xs font-mono font-semibold lowercase text-primary-black'
-                    onClick={(event) => { 
-                      event.stopPropagation();
-                      setSelectedMonths(
-                        selectedMonths?.filter(
-                          (month) => month?.value !== selectedMonth?.value
-                        )
-                      );
-                    }}
-                  >
-                    <span className=''>{selectedMonth?.text}</span>
-                    <span className=''>
-                      <FaXmark />
-                    </span>
-                  </div>
-                );
-              }
-            ) : <span className='font-mono lowercase'>Choose Logbook Month</span>}
+          <div className='flex w-full flex-wrap gap-3'>
+            {selectedMonths.length > 0 ? (
+              selectedMonths.map(
+                (selectedMonth: DropdownProps, index: number) => {
+                  return (
+                    <div
+                      key={`${index}-${selectedMonth?.value}`}
+                      className='flex items-center gap-2 bg-primary-yellow-100 px-3 py-2 rounded text-xs font-mono font-semibold lowercase text-primary-black'
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setSelectedMonths(
+                          selectedMonths?.filter(
+                            (month) => month?.value !== selectedMonth?.value
+                          )
+                        );
+                      }}
+                    >
+                      <span className=''>{selectedMonth?.text}</span>
+                      <span className=''>
+                        <FaXmark />
+                      </span>
+                    </div>
+                  );
+                }
+              )
+            ) : (
+              <span className='font-mono lowercase'>Choose Logbook Month</span>
+            )}
           </div>
-          <div className={`flex items-center transition-transform ${isDropdownOpen ? '-rotate-180' : ''}`}><IoChevronDown /></div>
+          <div
+            className={`flex items-center transition-transform ${
+              isDropdownOpen ? '-rotate-180' : ''
+            }`}
+          >
+            <IoChevronDown />
+          </div>
           <div
             className={`absolute z-50 w-full flex flex-col left-0 top-full rounded-b bg-primary-white dark:bg-primary-grey transition-all scrollbar-thin scrollbar-track-primary-grey/30 scrollbar-thumb-primary-black dark:scrollbar-track-primary-white/10 dark:scrollbar-thumb-primary-yellow-100/70 ${
               isDropdownOpen
@@ -222,47 +350,58 @@ export default function BinusEnrichment() {
                 : 'max-h-0 overflow-hidden'
             }`}
           >
-            {months?.map((month: string, index: number) => {
-              return (
-                <div
-                  className={`flex items-center gap-3 w-full py-2 px-4 cursor-pointer hover:bg-primary-yellow-100/40 transition-colors text-lg ${
-                    selectedMonths?.find(
-                      (selectedMonth) => selectedMonth?.value === month
-                    )
-                      ? 'bg-primary-yellow-100/40'
-                      : ''
-                  }`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    const selectedMonth = selectedMonths?.find(
-                      (selectedMonth) => selectedMonth?.value === month
-                    );
-                    if (selectedMonth) {
-                      setSelectedMonths(
-                        selectedMonths?.filter(
-                          (selectedMonth) => selectedMonth?.value !== month
-                        )
+            {months
+              .filter(
+                (m) =>
+                  m.period.find((mp) => mp === selectedPeriod.type) !==
+                  undefined
+              )
+              ?.map((month: Month, index: number) => {
+                return (
+                  <div
+                    className={`flex items-center gap-3 w-full py-2 px-4 cursor-pointer hover:bg-primary-yellow-100/40 transition-colors text-lg ${
+                      selectedMonths?.find(
+                        (selectedMonth) => selectedMonth?.value === month.text
+                      )
+                        ? 'bg-primary-yellow-100/40'
+                        : ''
+                    }`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      const selectedMonth = selectedMonths?.find(
+                        (selectedMonth) => selectedMonth?.value === month.text
                       );
-                    } else {
-                      setSelectedMonths([
-                        ...selectedMonths,
-                        { text: month, value: month }
-                      ]);
-                    }
-                  }}
-                  key={`${index}-${month}`}
-                >
-                  <span>
-                    {selectedMonths?.find(
-                      (selectedMonth) => selectedMonth?.value === month
-                    ) ? <MdCheckBox/> : <MdCheckBoxOutlineBlank />}
-                  </span>
-                  <span className='font-mono font-semibold lowercase text-primary-black dark:text-primary-white'>
-                    {month}
-                  </span>
-                </div>
-              );
-            })}
+                      if (selectedMonth) {
+                        setSelectedMonths(
+                          selectedMonths?.filter(
+                            (selectedMonth) =>
+                              selectedMonth?.value !== month.text
+                          )
+                        );
+                      } else {
+                        setSelectedMonths([
+                          ...selectedMonths,
+                          { text: month.text, value: month.text }
+                        ]);
+                      }
+                    }}
+                    key={`${index}-${month}`}
+                  >
+                    <span>
+                      {selectedMonths?.find(
+                        (selectedMonth) => selectedMonth?.value === month.text
+                      ) ? (
+                        <MdCheckBox />
+                      ) : (
+                        <MdCheckBoxOutlineBlank />
+                      )}
+                    </span>
+                    <span className='font-mono font-semibold lowercase text-primary-black dark:text-primary-white'>
+                      {month.text}
+                    </span>
+                  </div>
+                );
+              })}
           </div>
         </div>
         <FormProvider {...methods}>
